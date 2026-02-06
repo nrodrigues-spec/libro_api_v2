@@ -11,15 +11,9 @@ class Book(SQLModel, table=True):
     isbn: str = Field(unique=True, nullable=False)
     publication_year: int = Field(nullable=False)
     total_copies: int = Field(default=1, nullable=False, ge=0)
-    available_copies: int | None = Field(default=None, nullable=False)
+    available_copies: int | None = Field(default=None, nullable=True)
 
     loans: List["Loan"] = Relationship(back_populates="book")
-
-    @model_validator(mode="after")
-    def set_available_copies(self):
-        if self.available_copies is None:
-            self.available_copies = self.total_copies
-        return self
 
 class User(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
@@ -28,10 +22,10 @@ class User(SQLModel, table=True):
 
     loans: List["Loan"] = Relationship(back_populates="user")
 
-class LoanStatus(str, Enum):
-    BORROWED = "borrowed"
-    RETURNED = "returned"
-    OVERDUE = "overdue"
+# class LoanStatus(str, Enum):
+#     BORROWED = "borrowed"
+#     RETURNED = "returned"
+#     OVERDUE = "overdue"
 
 class Loan(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
@@ -51,13 +45,8 @@ class Loan(SQLModel, table=True):
             nullable=False,
         )
     )
-    return_date: datetime = Field(
-        sa_column=Column(
-            DateTime(timezone=True),
-            nullable=True,
-        )
-    )
-    status: LoanStatus = Field(default=LoanStatus.BORROWED)
+    return_date: datetime | None = None
+    status: str = Field(default='borrowed')
     book: Book | None = Relationship(back_populates="loans")
     user: User | None = Relationship(back_populates="loans")
 

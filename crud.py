@@ -1,17 +1,17 @@
 from database import SessionLocal
-from models import Book, User, Loan, LoanStatus
-from schemas import BookPublic, BookCreate, UserPublic, UserCreate, LoanPublic, LoanCreate
+from models import Book, User, Loan
+from schemas import BookCreate, UserCreate, LoanCreate
 from fastapi import HTTPException, Query
 from sqlmodel import select
 from typing import Annotated
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 
 def create_book_logic(
         session:SessionLocal, 
         book_req:BookCreate
         ):
-    book = Book.model_validate(book_req)
+    book = Book(**book_req.model_dump())
     print(f"after validation: {type(book)}")
     session.add(book)
     session.commit()
@@ -76,7 +76,7 @@ def get_user_logic(
         session:SessionLocal,
         user_id:int
         ):
-    user = session.get(user_id)
+    user = session.get(User, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User does not exist.")
     return user
@@ -93,7 +93,7 @@ def get_loan_logic(
         session:SessionLocal,
         loan_id:int
         ):
-    loan = session.get(loan_id)
+    loan = session.get(Loan, loan_id)
     if not loan:
         raise HTTPException(status_code=404, detail="User does not exist.")
     return loan
@@ -127,12 +127,19 @@ def borrow_book_logic(
             book_id=book_id
             )
         
-        loan = Loan.model_validate(loan_creating)
+        loan = Loan(
+            book_id=loan_creating.book_id,
+            user_id=loan_creating.user_id,
+            borrow_date=datetime.now(timezone.utc),
+            due_date=datetime.now(timezone.utc)+timedelta(days=14),
+            return_date=None
+            )
         session.add(book)
         session.add(loan)
     
     session.refresh(book)
     session.refresh(loan)
+    return loan
         
 def return_book_logic(
         session:SessionLocal,
@@ -146,7 +153,7 @@ def return_book_logic(
         if not book:
             raise HTTPException(status_code=404, detail="This loan has no valid book associated with it. Please check the database.")
         book.available_copies += 1
-        loan.status = LoanStatus.RETURNED
+        loan.status = "returned"
         loan.return_date = datetime.now(timezone.utc)
 
         session.add(book)
@@ -154,3 +161,4 @@ def return_book_logic(
     
     session.refresh(book)
     session.refresh(loan)
+    return loan
