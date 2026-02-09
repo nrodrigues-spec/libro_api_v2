@@ -7,20 +7,19 @@ class BookBase(SQLModel):
     author: str
     isbn: str
     publication_year: int
-    total_copies: int = Field(default=1, ge=0)
-    available_copies: int | None = None
+    total_copies: int
 
 class BookCreate(BookBase):
     pass
 
 class BookPublic(BookBase):
     id: int
+    available_copies: int
+    loans: list[LoanPublicShort]
 
-    @model_validator(mode="after")
-    def set_available_copies(self):
-        if self.available_copies is None:
-            self.available_copies = self.total_copies
-        return self
+class BookPublicShort(BookBase):
+    id: int
+    available_copies: int
 
 class UserBase(SQLModel):
     name: str
@@ -30,6 +29,10 @@ class UserCreate(UserBase):
     pass
 
 class UserPublic(UserBase):
+    id: int
+    loans: list[LoanPublicShort]
+
+class UserPublicShort(UserBase):
     id: int
 
 class LoanBase(SQLModel):
@@ -41,9 +44,15 @@ class LoanCreate(LoanBase):
 
 class LoanPublic(LoanBase):
     id: int
-    book: BookPublic
-    user: UserPublic
+    book: BookPublicShort
+    user: UserPublicShort
     borrow_date: datetime
+    due_date: datetime
+    return_date: datetime | None
+    status: str
+
+class LoanPublicShort(LoanBase):
+    id: int
     due_date: datetime
     return_date: datetime | None
     status: str

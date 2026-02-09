@@ -5,14 +5,20 @@ from fastapi import HTTPException, Query
 from sqlmodel import select
 from typing import Annotated
 from datetime import datetime, timezone, timedelta
-
+from sqlalchemy.exc import NoResultFound
 
 def create_book_logic(
         session:SessionLocal, 
         book_req:BookCreate
         ):
-    book = Book(**book_req.model_dump())
-    print(f"after validation: {type(book)}")
+    book = Book(
+        title=book_req.title,
+        author=book_req.author,
+        isbn=book_req.isbn,
+        publication_year=book_req.publication_year,
+        total_copies=book_req.total_copies,
+        available_copies=book_req.total_copies
+        )
     session.add(book)
     session.commit()
     session.refresh(book)
@@ -95,7 +101,7 @@ def get_loan_logic(
         ):
     loan = session.get(Loan, loan_id)
     if not loan:
-        raise HTTPException(status_code=404, detail="User does not exist.")
+        raise HTTPException(status_code=404, detail="Loan does not exist.")
     return loan
 
 def get_loans_logic(
@@ -112,8 +118,9 @@ def borrow_book_logic(
         user_id:int
         ):
     with session.begin():
-        book = session.exec(select(Book).where(Book.id == book_id).with_for_update()).one()
-        if not book:
+        try:
+            book = session.exec(select(Book).where(Book.id == book_id).with_for_update()).one()
+        except NoResultFound:
             raise HTTPException(status_code=404, detail="Book not found.")
         if book.available_copies == 0:
             raise HTTPException(status_code=412, detail="This book has no available copies.")
@@ -146,12 +153,18 @@ def return_book_logic(
         loan_id:int,
         ):
     with session.begin():
-        loan = session.exec(select(Loan).where(Loan.id == loan_id).with_for_update()).one()
-        if not loan:
+        try:
+            loan = session.exec(select(Loan).where(Loan.id == loan_id).with_for_update()).one()
+        except NoResultFound:
             raise HTTPException(status_code=404, detail="No loan with this ID.")
-        book = session.exec(select(Book).where(Book.id == loan.book_id).with_for_update()).one()
-        if not book:
+        if loan.status == "returned":
+            raise HTTPException(status_code=412, detail="This loan has already been cleared.")
+        try:
+            book = session.exec(select(Book).where(Book.id == loan.book_id).with_for_update()).one()
+        except NoResultFound:
             raise HTTPException(status_code=404, detail="This loan has no valid book associated with it. Please check the database.")
+        if book.available_copies == book.total_copies:
+            raise HTTPException(status_code=412, detail="Invalid return as all copies of this book are in the library.")
         book.available_copies += 1
         loan.status = "returned"
         loan.return_date = datetime.now(timezone.utc)

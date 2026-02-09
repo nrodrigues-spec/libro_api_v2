@@ -7,7 +7,6 @@ from typing import Annotated
 load_dotenv()
 
 db_url = os.getenv('SQLALCHEMY_DATABASE_URL')
-print(db_url)
 engine = create_engine(db_url, echo=True)
 
 def get_session():

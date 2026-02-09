@@ -46,9 +46,9 @@ def get_loans(session:SessionLocal):
     return get_loans_logic(session)
 
 @app.get("/loans/{loan_id}", response_model=LoanPublic)
-def get_user(session:SessionLocal, loan_id:int):
+def get_loan(session:SessionLocal, loan_id:int):
     return get_loan_logic(session, loan_id)
 
 @app.post("/loans/{loan_id}/return", response_model=LoanPublic)
 def return_book(session:SessionLocal, loan_id:int):
-    return_book_logic(session, loan_id)
+    return return_book_logic(session, loan_id)
