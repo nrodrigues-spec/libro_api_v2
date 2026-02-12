@@ -51,11 +51,9 @@ def update_book_logic(
         raise HTTPException(status_code=404, detail="Book not found.")
     book_data = book_req.model_dump(exclude_unset=True)
     book_pre.sqlmodel_update(book_data)
-    book_updated = Book.model_validate(book_pre)
-    session.add(book_updated)
     session.commit()
-    session.refresh(book_updated)
-    return book_updated
+    session.refresh(book_pre)
+    return book_pre
 
 def delete_book_logic(
         session:SessionLocal,
