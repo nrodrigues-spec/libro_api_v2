@@ -49,45 +49,42 @@ def client(test_session):
     app.dependency_overrides.clear()
 
 @pytest.fixture
-def book_init(client):
-    client.post("/books",
-                json={
-                    "title": "test1",
-                    "author": "test1",
-                    "isbn": "test1",
-                    "publication_year": 2001,
-                    "total_copies": 3
-                    })
+def book_init(test_session):
+    book = Book(
+        title="test_title",
+        author="test_author",
+        isbn="test_isbn",
+        publication_year=2000,
+        total_copies=10,
+        available_copies=10
+        )
+    test_session.add(book)
+    test_session.commit()
+    return book
 
-# Database setup and teardown
+@pytest.fixture
+def user_init(test_session):
+    user = User(
+        name="test_name",
+        email="test_email"
+    )
+    test_session.add(user)
+    test_session.commit()
+    return user
 
-# @pytest.fixture
-# def population(test_session):
-#     new_book = Book(
-#         title="initiated_book_test",
-#         author="initiated_book_test",
-#         isbn="initiated_book_test",
-#         publication_year=1900,
-#         total_copies=2
-#     )
-#     new_book_2 = Book(
-#         title="initiated_book_test_2",
-#         author="initiated_book_test_2",
-#         isbn="initiated_book_test_2",
-#         publication_year=1900,
-#         total_copies=2
-#     )
-#     new_user = User(
-#         name="test_user",
-#         email="test_user"
-#     )
-#     test_session.add(new_book)
-#     test_session.add(new_book_2)
-#     test_session.add(new_user)
-#     test_session.commit()
-#     test_session.close()
-#     yield test_session
-#     test
+@pytest.fixture
+def loan_init(test_session, book_init, user_init):
+    loan = Loan(
+            book_id=book_init.id,
+            user_id=user_init.id,
+            borrow_date=datetime.now(timezone.utc),
+            due_date=datetime.now(timezone.utc)+timedelta(days=14),
+            return_date=None
+            )
+    test_session.add(loan)
+    test_session.commit()
+    return loan
+
 
 # Test cases
 
@@ -97,22 +94,12 @@ def test_get_books(client):
     data = response.json()
     assert type(data) == list
 
-@pytest.mark.parametrize("num, avail_copies",
-                         [(1, 3),
-                          (2, 5)])
-def test_get_book(client, book_init, num, avail_copies):
-    new_book = client.post("/books",
-                        json={
-                        "title": "test2",
-                        "author": "test2",
-                        "isbn": "test2",
-                        "publication_year": 2002,
-                        "total_copies": 5
-                        })
-    response = client.get(f"/books/{num}")
+def test_get_book(client, book_init):
+    response = client.get("/books/1")
     assert response.status_code == 200
-    assert 'id' in response.json()
-    assert response.json()["available_copies"] == avail_copies
+    data = response.json()
+    assert "id" in data
+    assert data["available_copies"] == data["total_copies"]
 
 def test_create_book(client):
     response = client.post("/books",
@@ -126,7 +113,7 @@ def test_create_book(client):
     assert response.status_code == 200
     data = response.json()
     assert "id" in data
-    assert data["available_copies"] == 4
+    assert data["available_copies"] == data["total_copies"]
 
 def test_create_book_duplicate_isbns(client, book_init):
     with pytest.raises(exc.IntegrityError):
@@ -134,7 +121,7 @@ def test_create_book_duplicate_isbns(client, book_init):
                     json={
                         "title": "test2",
                         "author": "test2",
-                        "isbn": "test1",
+                        "isbn": "test_isbn",
                         "publication_year": 2002,
                         "total_copies": 5
                         })
@@ -154,3 +141,49 @@ def test_delete_book(client, book_init):
     response = client.delete("/books/1")
     assert response.status_code == 200
     assert response.json()["message"] == "Book deleted successfully."
+
+def test_get_users(client, user_init):
+    response = client.get("/users")
+    assert response.status_code == 200
+    data = response.json()
+    assert type(data) == list
+    assert "name" in data[0]
+    assert "email" in data[0]
+
+def test_get_user(client, user_init):
+    response = client.get("/users/1")
+    assert response.status_code == 200
+    data = response.json()
+    assert "name" in data
+    assert "email" in data
+
+def test_create_user(client):
+    response = client.post("/users",
+                           json={
+                               "name": "test_user",
+                               "email": "test_email"
+                           })
+    assert response.status_code == 200
+    data = response.json()
+    assert "name" in data
+    assert "email" in data
+
+def test_get_loans(client, loan_init):
+    response = client.get("/loans")
+    assert response.status_code == 200
+    data = response.json()
+    assert type(data) == list
+    assert "id" in data[0]
+    assert "book" in data[0]
+    assert "user" in data[0]
+    assert data[0]["book"]["id"] == data[0]["book_id"]
+    assert data[0]["user"]["id"] == data[0]["user_id"]
+    assert "borrow_date" in data[0]
+    assert "due_date" in data[0]
+    assert data[0]["return_date"] == None
+
+def test_borrow_book(test_session, book_init, user_init):
+    initial_copies = book_init.available_copies
+    with test_session.begin_nested():
+        response = client.post(f"/books/{book_init.id}/borrow?user_id={user_init.id}")
+        assert response.status_code == 200

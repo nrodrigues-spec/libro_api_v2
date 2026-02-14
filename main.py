@@ -39,7 +39,7 @@ def get_user(session:SessionLocal, user_id:int):
 
 @app.post("/users", response_model=UserPublic)
 def create_user(session:SessionLocal, user:UserCreate):
-    return create_book_logic(session, user)
+    return create_user_logic(session, user)
 
 @app.get("/loans", response_model=list[LoanPublic])
 def get_loans(session:SessionLocal):
