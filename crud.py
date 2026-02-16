@@ -50,6 +50,8 @@ def update_book_logic(
     if not book_pre:
         raise HTTPException(status_code=404, detail="Book not found.")
     book_data = book_req.model_dump(exclude_unset=True)
+    if book_pre.available_copies > book_data["total_copies"]:
+        book_data["available_copies"] = book_data["total_copies"]
     book_pre.sqlmodel_update(book_data)
     session.commit()
     session.refresh(book_pre)
