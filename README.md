@@ -423,6 +423,7 @@ Retrieves a list of the book loans.
 Response model: List[LoanPublic]
 
 ```json
+[
   {
     "book_id": 0,
     "user_id": 0,
