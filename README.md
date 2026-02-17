@@ -20,7 +20,7 @@ This API connects to a PostgreSQL server and saves all the information in a data
 - Open a new terminal window and run the following command: (make sure to replace [container name], [new username] and [new password] with your values)
 
 ```bash
-docker run --name [container name] -e POSTGRES_USER=[new username] POSTGRES_PASSWORD=[new password]> -p 5432:5432 -d postgres
+docker run --name [container name] -e POSTGRES_USER=[new username] POSTGRES_PASSWORD=[new password] -p 5432:5432 -d postgres
 ```
 
 This will create and run a new container with the latest PostgreSQL image.
@@ -33,8 +33,8 @@ Note: This container should be running after it has been made. If it has stopped
 - Create and activate a new virtual environment and install the packages in the requirements.txt file by running the following commands:
 
 ```bash
-python3 -m venv <virtual env name>
-<virtual env name>/bin/activate
+python3 -m venv [virtual env name]
+[virtual env name]/bin/activate
 pip install -r requirements.txt
 ```
 
